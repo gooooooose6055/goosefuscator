@@ -1,0 +1,3 @@
+-- NEWTABLE
+return "\tStack[:A:] = {}"
+

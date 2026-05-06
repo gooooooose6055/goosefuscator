@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goosefuscator — Luau Obfuscator</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a28;
+      --surface3: #22223a;
+      --border: #2a2a44;
+      --text: #e8e8f0;
+      --text2: #9898b0;
+      --text3: #6868a0;
+      --accent: #7c3aed;
+      --accent2: #a855f7;
+      --accent-glow: rgba(124, 58, 237, .3);
+      --green: #10b981;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --blue: #3b82f6;
+      --radius: 12px;
+      --radius-lg: 16px;
+    }
+
+    html {
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      scroll-behavior: smooth
+    }
+
+    body {
+      min-height: 100vh;
+      overflow-x: hidden
+    }
+
+    /* Animated background */
+    .bg-glow {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden
+    }
+
+    .bg-glow::before,
+    .bg-glow::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: .15;
+      animation: float 20s ease-in-out infinite
+    }
+
+    .bg-glow::before {
+      width: 600px;
+      height: 600px;
+      background: var(--accent);
+      top: -200px;
+      left: -100px;
+      animation-delay: 0s
+    }
+
+    .bg-glow::after {
+      width: 500px;
+      height: 500px;
+      background: var(--blue);
+      bottom: -150px;
+      right: -100px;
+      animation-delay: -10s
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translate(0, 0) scale(1)
+      }
+
+      25% {
+        transform: translate(80px, 60px) scale(1.1)
+      }
+
+      50% {
+        transform: translate(-40px, 100px) scale(.9)
+      }
+
+      75% {
+        transform: translate(60px, -40px) scale(1.05)
+      }
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 20px
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 48px 0 32px
+    }
+
+    .logo {
+      font-size: 42px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2), var(--blue));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px
+    }
+
+    .logo span {
+      font-size: 20px;
+      vertical-align: super;
+      -webkit-text-fill-color: var(--text3);
+      opacity: .6
+    }
+
+    .subtitle {
+      color: var(--text2);
+      font-size: 15px;
+      margin-top: 8px;
+      font-weight: 400
+    }
+
+    /* Main layout */
+    .main {
+      display: grid;
+      gap: 20px
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color .2s
+    }
+
+    .card:hover {
+      border-color: var(--accent)
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2)
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .card-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600
+    }
+
+    /* Code editor */
+    .editor-wrap {
+      position: relative
+    }
+
+    .editor {
+      width: 100%;
+      min-height: 300px;
+      max-height: 600px;
+      padding: 20px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      resize: vertical;
+      outline: none;
+      tab-size: 2
+    }
+
+    .editor::placeholder {
+      color: var(--text3)
+    }
+
+    .editor:focus {
+      background: rgba(124, 58, 237, .02)
+    }
+
+    /* File upload */
+    .upload-zone {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface)
+    }
+
+    .upload-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px dashed var(--border);
+      background: transparent;
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      transition: all .2s
+    }
+
+    .upload-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(124, 58, 237, .05)
+    }
+
+    .upload-btn svg {
+      width: 16px;
+      height: 16px
+    }
+
+    .file-name {
+      font-size: 13px;
+      color: var(--accent2);
+      font-weight: 500
+    }
+
+    .file-input {
+      display: none
+    }
+
+    /* Controls */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      padding: 20px;
+      align-items: end
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px
+    }
+
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2);
+      cursor: pointer;
+      user-select: none
+    }
+
+    .option input[type=checkbox] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      position: relative;
+      transition: all .15s;
+      flex-shrink: 0
+    }
+
+    .option input[type=checkbox]:checked {
+      background: var(--accent);
+      border-color: var(--accent)
+    }
+
+    .option input[type=checkbox]:checked::after {
+      content: '✓';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #fff;
+      font-weight: 700
+    }
+
+    .option:hover {
+      color: var(--text)
+    }
+
+    .vm-select {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2)
+    }
+
+    .vm-select select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      cursor: pointer
+    }
+
+    /* Obfuscate button */
+    .obf-btn {
+      padding: 14px 36px;
+      border: none;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+      min-width: 200px;
+      text-align: center
+    }
+
+    .obf-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 30px var(--accent-glow)
+    }
+
+    .obf-btn:active {
+      transform: translateY(0)
+    }
+
+    .obf-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none
+    }
+
+    .obf-btn .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, .3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+      margin: 0 auto
+    }
+
+    .obf-btn.loading .btn-text {
+      display: none
+    }
+
+    .obf-btn.loading .spinner {
+      display: inline-block
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 16px 20px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border)
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border-radius: 8px;
+      min-width: 100px
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: .5px
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace
+    }
+
+    .stat-value.green {
+      color: var(--green)
+    }
+
+    .stat-value.blue {
+      color: var(--blue)
+    }
+
+    .stat-value.yellow {
+      color: var(--yellow)
+    }
+
+    .stat-value.accent {
+      color: var(--accent2)
+    }
+
+    /* Output section */
+    .output-section {
+      display: none
+    }
+
+    .output-section.visible {
+      display: block
+    }
+
+    .output-actions {
+      display: flex;
+      gap: 10px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface)
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      transition: all .15s
+    }
+
+    .action-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(124, 58, 237, .05)
+    }
+
+    .action-btn.primary {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff
+    }
+
+    .action-btn.primary:hover {
+      background: #0d9668;
+      transform: translateY(-1px)
+    }
+
+    .action-btn svg {
+      width: 15px;
+      height: 15px
+    }
+
+    /* Steps log */
+    .steps-log {
+      padding: 16px 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.8;
+      color: var(--text3);
+      background: var(--surface)
+    }
+
+    .steps-log .step {
+      color: var(--text2)
+    }
+
+    .steps-log .step::before {
+      content: '›';
+      color: var(--accent);
+      margin-right: 8px;
+      font-weight: 700
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 12px 24px;
+      border-radius: 10px;
+      background: var(--green);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 1000;
+      transition: transform .3s ease;
+      pointer-events: none
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0)
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text3)
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 32px 0 20px;
+      color: var(--text3);
+      font-size: 12px
+    }
+
+    .footer a {
+      color: var(--accent2);
+      text-decoration: none
+    }
+
+    /* Responsive */
+    @media(max-width:768px) {
+      .logo {
+        font-size: 28px
+      }
+
+      .controls {
+        grid-template-columns: 1fr
+      }
+
+      .obf-btn {
+        width: 100%
+      }
+
+      .stats-bar {
+        gap: 8px
+      }
+
+      .stat {
+        min-width: 80px;
+        padding: 6px 10px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="container">
+    <header class="header">
+      <h1 class="logo">Goosefuscator <span>v3</span></h1>
+      <p class="subtitle">Premium Luau Obfuscation — Hercules Anti-Tamper • Dual-Pass Compression • VM Layers •
+        Roblox-Only Lock</p>
+    </header>
+
+    <main class="main">
+      <!-- Input Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 18l6-6-6-6" />
+              <path d="M8 6l-6 6 6 6" />
+            </svg>
+            Input Code
+          </span>
+          <span class="card-badge" id="inputSize">0 bytes</span>
+        </div>
+        <div class="upload-zone">
+          <label class="upload-btn" for="fileInput">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            Upload File
+          </label>
+          <input type="file" id="fileInput" class="file-input" accept=".lua,.luau,.txt">
+          <span class="file-name" id="fileName"></span>
+        </div>
+        <div class="editor-wrap">
+          <textarea id="inputEditor" class="editor"
+            placeholder="-- Paste your Luau code here...&#10;-- Or upload a .lua / .luau file above&#10;&#10;local function hello()&#10;  print(&quot;Hello World!&quot;)&#10;end&#10;&#10;hello()"
+            spellcheck="false"></textarea>
+        </div>
+
+        <div class="controls">
+          <div>
+            <div class="options">
+              <label class="option"><input type="checkbox" id="optStrings" checked> Encrypt Strings</label>
+              <label class="option"><input type="checkbox" id="optNumbers" checked> Encode Numbers</label>
+              <label class="option"><input type="checkbox" id="optJunk" checked> Junk Injection</label>
+              <label class="option"><input type="checkbox" id="optSecurity" checked> Security Header</label>
+              <label class="option"><input type="checkbox" id="optAntiDecomp" checked> Anti-Decompile</label>
+              <label class="option"><input type="checkbox" id="optCompress" checked> Compress Output</label>
+              <label class="option"><input type="checkbox" id="optLuau" checked> Luau Mode</label>
+              <label class="option"><input type="checkbox" id="optConstArr" checked> Constant Array</label>
+            </div>
+            <div class="vm-select" style="margin-top:12px">
+              <span>VM Layers:</span>
+              <select id="optVmLayers">
+                <option value="1">1 Layer</option>
+                <option value="2">2 Layers</option>
+                <option value="3" selected>3 Layers</option>
+                <option value="4">4 Layers</option>
+                <option value="5">5 Layers (Max)</option>
+              </select>
+            </div>
+          </div>
+          <button class="obf-btn" id="obfBtn" onclick="doObfuscate()">
+            <span class="btn-text">Obfuscate</span>
+            <div class="spinner"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Output Card -->
+      <div class="card output-section" id="outputSection">
+        <div class="card-header">
+          <span class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            Obfuscated Output
+          </span>
+          <span class="card-badge" id="outputSize">0 KB</span>
+        </div>
+
+        <div class="stats-bar" id="statsBar"></div>
+
+        <div class="output-actions">
+          <button class="action-btn primary" onclick="downloadOutput()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download .lua
+          </button>
+          <button class="action-btn" onclick="copyOutput()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+            </svg>
+            Copy to Clipboard
+          </button>
+          <button class="action-btn" onclick="toggleSteps()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            View Steps
+          </button>
+        </div>
+
+        <div class="steps-log" id="stepsLog" style="display:none"></div>
+
+        <div class="editor-wrap">
+          <textarea id="outputEditor" class="editor" readonly style="min-height:200px;color:var(--text3);cursor:default"
+            placeholder="Obfuscated output will appear here..."></textarea>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      Goosefuscator v3
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let lastOutput = '';
+    let lastFileName = 'obfuscated.lua';
+
+    const $ = id => document.getElementById(id);
+
+    // File upload
+    $('fileInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        $('inputEditor').value = ev.target.result;
+        $('fileName').textContent = file.name;
+        lastFileName = file.name.replace(/\.(lua|luau|txt)$/i, '') + '_obf.lua';
+        updateInputSize();
+      };
+      reader.readAsText(file);
+    });
+
+    // Input size counter
+    $('inputEditor').addEventListener('input', updateInputSize);
+    function updateInputSize() {
+      const len = $('inputEditor').value.length;
+      $('inputSize').textContent = len < 1024 ? len + ' bytes' : (len / 1024).toFixed(1) + ' KB';
+    }
+
+    // Tab key in editor
+    $('inputEditor').addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const t = e.target, s = t.selectionStart, end_ = t.selectionEnd;
+        t.value = t.value.substring(0, s) + '  ' + t.value.substring(end_);
+        t.selectionStart = t.selectionEnd = s + 2;
+      }
+    });
+
+    // Obfuscate
+    async function doObfuscate() {
+      const code = $('inputEditor').value.trim();
+      if (!code) { showToast('Paste some code first!'); return; }
+
+      const btn = $('obfBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/obfuscate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            options: {
+              vmLayers: parseInt($('optVmLayers').value),
+              strings: $('optStrings').checked,
+              numbers: $('optNumbers').checked,
+              junk: $('optJunk').checked,
+              security: $('optSecurity').checked,
+              antiDecomp: $('optAntiDecomp').checked,
+              constArr: $('optConstArr').checked,
+              compress: $('optCompress').checked,
+              isLuau: $('optLuau').checked,
+            },
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Obfuscation failed');
+
+        lastOutput = data.output;
+        $('outputEditor').value = data.output;
+        $('outputSection').classList.add('visible');
+        $('outputSize').textContent = (data.stats.outputSize / 1024).toFixed(1) + ' KB';
+
+        // Stats
+        $('statsBar').innerHTML = `
+      <div class="stat"><span class="stat-label">Input</span><span class="stat-value blue">${formatBytes(data.stats.inputSize)}</span></div>
+      <div class="stat"><span class="stat-label">Output</span><span class="stat-value accent">${formatBytes(data.stats.outputSize)}</span></div>
+      <div class="stat"><span class="stat-label">Ratio</span><span class="stat-value yellow">${data.stats.ratio}x</span></div>
+      <div class="stat"><span class="stat-label">Compression</span><span class="stat-value ${parseFloat(data.stats.ratio) <= 2.5 ? 'green' : 'yellow'}">${parseFloat(data.stats.ratio) <= 2.5 ? '●' : '◐'} ${parseFloat(data.stats.ratio) <= 2.5 ? 'Optimal' : 'Good'}</span></div>
+      <div class="stat"><span class="stat-label">VM Layers</span><span class="stat-value green">${data.stats.vmLayers}</span></div>
+      <div class="stat"><span class="stat-label">Time</span><span class="stat-value">${data.stats.time}s</span></div>
+      <div class="stat"><span class="stat-label">Steps</span><span class="stat-value">${data.stats.steps.length}</span></div>
+    `;
+
+        // Steps log
+        $('stepsLog').innerHTML = data.stats.steps.map(s => `<div class="step">${escHtml(s)}</div>`).join('');
+
+        $('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('Obfuscation complete!');
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    function downloadOutput() {
+      if (!lastOutput) return;
+      const blob = new Blob([lastOutput], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = lastFileName; a.click();
+      URL.revokeObjectURL(url);
+      showToast('Downloaded ' + lastFileName);
+    }
+
+    function copyOutput() {
+      if (!lastOutput) return;
+      navigator.clipboard.writeText(lastOutput).then(() => showToast('Copied to clipboard!'));
+    }
+
+    function toggleSteps() {
+      const el = $('stepsLog');
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function formatBytes(b) {
+      if (b < 1024) return b + ' B';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+      return (b / 1024 / 1024).toFixed(1) + ' MB';
+    }
+
+    function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+    function showToast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+  </script>
+</body>
+
+</html>
